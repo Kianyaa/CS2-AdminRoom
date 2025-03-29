@@ -80,7 +80,7 @@ public class AdminRoomPlugin : BasePlugin
         if (Config.AdminRoomPlugin.TryGetValue(mapName, out var positionConfig))
         {
             var adminRoomPosition = new Vector(positionConfig.X, positionConfig.Y, positionConfig.Z);
-            var adminRoomAngles = new QAngle(positionConfig.AngleX, positionConfig.Y, positionConfig.AngleZ); // Adjust angles as needed
+            var adminRoomAngles = new QAngle(positionConfig.AngleX, positionConfig.AngleY, positionConfig.AngleZ); // Adjust angles as needed
 
             // Executing the command to teleport the player to the admin room
 
