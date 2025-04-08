@@ -35,6 +35,8 @@ public class AdminRoomPlugin : BasePlugin
 
     public Config Config { get; set; } = new Config();
     private const string ConfigFilePath = "../../csgo/addons/counterstrikesharp/configs/adminroom_config.json";
+    private int _countfind = 0;
+    private List<CBaseEntity>? _listofButton = new List<CBaseEntity>();
 
     // Method to handle the parsing of the config file
     public void OnConfigParsed(Config config)
@@ -55,9 +57,17 @@ public class AdminRoomPlugin : BasePlugin
             Logger.LogInformation("AdminRoomPlugin Config loaded successfully.");
         }
 
+        RegisterEventHandler<EventRoundStart>(EventOnRoundStart);
+
     }
 
-    [ConsoleCommand("css_adminroom", "Teleport admin to admin room can setpos")]
+    public override void Unload(bool hotReload)
+    {
+
+        DeregisterEventHandler<EventRoundStart>(EventOnRoundStart);
+    }
+
+    [ConsoleCommand("css_adminroom", " -set for set adminroom, -find for auto find adminroom, -range show all possible range index button, no arg for teleport to admin room (if set)")]
     [RequiresPermissions("@css/admin")]
     [CommandHelper(whoCanExecute: CommandUsage.CLIENT_ONLY)]
     public void AdminRoomCommand(CCSPlayerController? player, CommandInfo commandInfo)
@@ -69,74 +79,188 @@ public class AdminRoomPlugin : BasePlugin
             return;
         }
 
+        if (player.Team == CsTeam.None || player.Team == CsTeam.Spectator || player.PawnIsAlive == false)
+        {
+            return;
+        }
+
         // Get the player's position
         var playerPawn = player.PlayerPawn.Value;
 
         // Get Map Name
         var mapName = Server.MapName;
-        
 
-        // Get the position of the admin room from the json file
-        if (Config.AdminRoomPlugin.TryGetValue(mapName, out var positionConfig))
+        var commandarg_0 = commandInfo.GetArg(1);
+        var commandarg_1 = commandInfo.GetArg(2);
+
+        // Check if the command argument is "-find"
+
+
+
+        if (commandarg_0.ToLower() == "-find")
         {
-            var adminRoomPosition = new Vector(positionConfig.X, positionConfig.Y, positionConfig.Z);
-            var adminRoomAngles = new QAngle(positionConfig.AngleX, positionConfig.AngleY, positionConfig.AngleZ); // Adjust angles as needed
+            if (commandarg_1 == "")
+            {
 
-            // Executing the command to teleport the player to the admin room
+                if (_listofButton == null || _listofButton.Count == 0)
+                {
+                    player.PrintToChat($" {ChatColors.Green}[AdminRoom] {ChatColors.Yellow}Failed to search admin room for this map");
+                    return;
+                }
 
-            playerPawn?.Teleport(adminRoomPosition, adminRoomAngles);
+                if (_countfind >= _listofButton!.Count)
+                {
+                    _countfind = 0;
+                }
 
-            player.PrintToChat($" {ChatColors.Green}[AdminRoom] {ChatColors.Default}Teleported you to admin room.");
+                var adminrooment = _listofButton?[_countfind];
+
+
+                if (adminrooment == null)
+                {
+                    player.PrintToChat($" {ChatColors.Green}[AdminRoom] {ChatColors.Yellow}Failed to search admin room for this map");
+
+                    return;
+                }
+
+                playerPawn?.Teleport(adminrooment.AbsOrigin, adminrooment.AbsRotation);
+
+                player.PrintToChat($" {ChatColors.Green}[AdminRoom] {ChatColors.Default}auto finder success found the admin room");
+
+                if (_listofButton.Count != 0 || _listofButton!.Count != null)
+                {
+                    player.PrintToChat($" {ChatColors.Green}[AdminRoom] {ChatColors.Default}button index range [0 - {_listofButton!.Count - 1}] Current index: {ChatColors.Red}{_countfind}");
+                    player.PrintToChat($" {ChatColors.Default}Current position: {adminrooment.AbsOrigin}, {adminrooment.AbsRotation}");
+
+                }
+
+                _countfind++;
+
+                return;
+
+            }
+            
+            else 
+            {
+                if (int.TryParse(commandarg_1, out int index) && _listofButton != null && index >= 0 && index < _listofButton.Count)
+                {
+                    var adminrooment = _listofButton[index];
+
+                    playerPawn?.Teleport(adminrooment.AbsOrigin, adminrooment.AbsRotation);
+
+                    player.PrintToChat($" {ChatColors.Green}[AdminRoom] {ChatColors.Default}Teleported to admin room index {index}");
+                    player.PrintToChat($" {ChatColors.Default}Current position: {adminrooment.AbsOrigin}, {adminrooment.AbsRotation}");
+
+                    _countfind++;
+                }
+                else
+                {
+                    player.PrintToChat($" {ChatColors.Green}[AdminRoom] {ChatColors.Yellow}Invalid input index");
+                }
+
+                return;
+            }
+
         }
-        else
-        {
-            player.PrintToChat($" {ChatColors.Green}[AdminRoom] {ChatColors.Default}Admin room position not set for this map yet.");
-        }
 
-    }
-
-    [ConsoleCommand("css_adminroomset", "Set position of admin room on map")]
-    [RequiresPermissions("@css/admin")]
-    [CommandHelper(whoCanExecute: CommandUsage.CLIENT_ONLY)]
-    public void AdminRoomSetCommand(CCSPlayerController? player, CommandInfo commandInfo)
-    {
-        // Check if the player is valid and connected
-        if (player == null || player is not { IsValid: true, PlayerPawn.IsValid: true } ||
-            player.Connected != PlayerConnectedState.PlayerConnected)
+        if (commandarg_0.ToLower() == "-set")
         {
+
+            var playerPosition = playerPawn?.AbsOrigin ?? new Vector(0);
+            var playerAngles = playerPawn?.AbsRotation ?? new QAngle(0);
+
+            Config.AdminRoomPlugin[mapName] = new PositionConfig
+            {
+                MapWorkshopId = 0, // Recently not using this
+
+                // Axis for the position
+                X = playerPosition.X,
+                Y = playerPosition.Y,
+                Z = playerPosition.Z,
+
+                // Axis for the angles FOV
+                AngleX = playerAngles.X,
+                AngleY = playerAngles.Y,
+                AngleZ = playerAngles.Z
+            };
+
+            SaveConfigToFile(ConfigFilePath);
+
+            player.PrintToChat($" {ChatColors.Green}[AdminRoom] {ChatColors.Default}Set current position in {ChatColors.Red}{Server.MapName} {ChatColors.Default}as admin room.");
+            player.PrintToChat($" {ChatColors.Default}Current Position: {playerPosition[0]}, {playerPosition[1]}, {playerPosition[2]}");
+
             return;
         }
 
-        // Get the player's position for set the admin room
-        var playerPawn = player.PlayerPawn.Value;
-
-        var playerPosition = playerPawn?.AbsOrigin ?? new Vector(0);
-        var playerAngles = playerPawn?.AbsRotation ?? new QAngle(0);
-
-        // Set this position as the admin room in the json file
-        var mapName = Server.MapName;
-
-        Config.AdminRoomPlugin[mapName] = new PositionConfig
+        if (commandarg_0.ToLower() == "-range")
         {
-            MapWorkshopId = 0, // Recently not using this
+            player.PrintToChat($" {ChatColors.Green}[AdminRoom] {ChatColors.Default}index admin button possible range [0 - {_listofButton!.Count - 1}]");
+        }
 
-            // Axis for the position
-            X = playerPosition.X,
-            Y = playerPosition.Y,
-            Z = playerPosition.Z,
 
-            // Axis for the angles FOV
-            AngleX = playerAngles.X,
-            AngleY = playerAngles.Y,
-            AngleZ = playerAngles.Z
-        };
+        if (commandarg_0.ToLower() == "")
+        {
+            // Get the position of the admin room from the json file
+            if (Config.AdminRoomPlugin.TryGetValue(mapName, out var positionConfig))
+            {
+                var adminRoomPosition = new Vector(positionConfig.X, positionConfig.Y, positionConfig.Z);
+                var adminRoomAngles = new QAngle(positionConfig.AngleX, positionConfig.AngleY, positionConfig.AngleZ); // Adjust angles as needed
 
-        SaveConfigToFile(ConfigFilePath);
+                // Executing the command to teleport the player to the admin room
+                playerPawn?.Teleport(adminRoomPosition, adminRoomAngles);
 
-        player.PrintToChat($" {ChatColors.Green}[AdminRoom] {ChatColors.Default}Set current position in {ChatColors.Red}{Server.MapName} {ChatColors.Default}as admin room.");
-        player.PrintToChat($" {ChatColors.Default}Current Position: {playerPosition[0]}, {playerPosition[1]}, {playerPosition[2]}");
+                player.PrintToChat($" {ChatColors.Green}[AdminRoom] {ChatColors.Default}Teleported you to admin room.");
+            }
+            else
+            {
+                player.PrintToChat($" {ChatColors.Green}[AdminRoom] {ChatColors.Default}Admin room position not set for this map yet.");
 
+            }
+
+            return;
+        }
+
+        else
+        {
+            player.PrintToChat($" {ChatColors.Green}[AdminRoom] {ChatColors.Default}Invalid input arg (-find, -set)");
+        }
+        
     }
+
+    [GameEventHandler(HookMode.Post)]
+    public HookResult EventOnRoundStart(EventRoundStart @event, GameEventInfo info)
+    {
+        var entities = Utilities.FindAllEntitiesByDesignerName<CBaseEntity>("func_button");
+
+        _listofButton!.Clear();
+        _countfind = 0;
+
+        foreach (var ent in entities)
+        {
+            if (ent.DesignerName != null && ent.DesignerName.ToLower().Contains("func_button"))
+            {
+
+                string fileNameWithExtension = ent.CBodyComponent!.SceneNode!.GetSkeletonInstance().ModelState.ModelName.Substring(ent.CBodyComponent!.SceneNode!.GetSkeletonInstance().ModelState.ModelName.LastIndexOf('/') + 1);
+                string fileNameWithoutExtension = fileNameWithExtension.Substring(0, fileNameWithExtension.LastIndexOf('.'));
+
+
+                if (fileNameWithoutExtension.ToLower().Split("_").Any(part => part is "admin" or "stage" or "level" or "level1" or "level2" or "level3" or "lvl" or "act" or "extreme" or "ex" or "ex1" or "ex2" or "ex3" or "ext" or "ext1" or "ext2" or "ext3" or "round" or "kill" or "restart" or "nuke"))
+                {
+
+                    //Server.PrintToChatAll($"[Button] fileNameWithExtension: {fileNameWithoutExtension}");
+
+                    _listofButton?.Add(ent);
+                }
+
+                
+            }
+
+        }
+
+        return HookResult.Continue;
+    }
+
+
 
     public void SaveConfigToFile(string filePath)
     {
