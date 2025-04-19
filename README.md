@@ -2,18 +2,21 @@
 
 **CS2 plugin for teleport admin to admin room and also can set the specific location of admin room usually using for ze-map**
 
-`!adminroom` : teleport player to admin room <br><br>
+`!adminroom` : teleport player to admin room (if set)<br><br>
 ![image](https://github.com/user-attachments/assets/6fa1d733-95cc-4e74-8ac4-3d99bec32ac9) <br><br>
-`!adminroomset` : set current position as admin room for this map <br><br>
+`!adminroom -set` : set current position as admin room for this map <br><br>
 ![image](https://github.com/user-attachments/assets/0fd984f2-d977-428a-8eaa-a80224ed59e3) <br><br>
 If the admin room still not has been set <br><br>
 ![image](https://github.com/user-attachments/assets/1d38bc27-e73a-490d-9f82-d215528084e8) <br><br>
+`!adminroom -find` : auto random find admin room <br>
+`!adminroom -find [index]` : teleport to admin room (by index of button)
+
 
 
 ## Features
 
-- teleport flag admin (`css\@admin`) to location that has been set as admin room.
-- can set specific position as admin room for the current map.
+- teleport flag admin (`css\@admin`) to a location that has been set as admin room.
+- loop through the admin button in the map when using `!adminroom -find`.
 - save and can config in the JSON file format.
 
 ## Requirements
