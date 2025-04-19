@@ -29,7 +29,7 @@ public class Config : BasePluginConfig
 public class AdminRoomPlugin : BasePlugin
 {
     public override string ModuleName => "AdminRoomPlugin";
-    public override string ModuleVersion => "1.0.0";
+    public override string ModuleVersion => "1.0.1";
     public override string ModuleAuthor => "Kianya";
     public override string ModuleDescription => "Teleport or Set admin room to the current map";
 
@@ -68,7 +68,7 @@ public class AdminRoomPlugin : BasePlugin
     }
 
     [ConsoleCommand("css_adminroom", " -set for set adminroom, -find for auto find adminroom, -range show all possible range index button, no arg for teleport to admin room (if set)")]
-    [RequiresPermissions("@css/admin")]
+    [RequiresPermissions("@css/generic")]
     [CommandHelper(whoCanExecute: CommandUsage.CLIENT_ONLY)]
     public void AdminRoomCommand(CCSPlayerController? player, CommandInfo commandInfo)
     {
@@ -86,6 +86,11 @@ public class AdminRoomPlugin : BasePlugin
 
         // Get the player's position
         var playerPawn = player.PlayerPawn.Value;
+
+        if (playerPawn == null || !playerPawn.IsValid)
+        {
+            return;
+        }
 
         // Get Map Name
         var mapName = Server.MapName;
@@ -169,6 +174,7 @@ public class AdminRoomPlugin : BasePlugin
             var playerPosition = playerPawn?.AbsOrigin ?? new Vector(0);
             var playerAngles = playerPawn?.AbsRotation ?? new QAngle(0);
 
+
             Config.AdminRoomPlugin[mapName] = new PositionConfig
             {
                 MapWorkshopId = 0, // Recently not using this
@@ -232,6 +238,11 @@ public class AdminRoomPlugin : BasePlugin
     {
         var entities = Utilities.FindAllEntitiesByDesignerName<CBaseEntity>("func_button");
 
+        if (entities == null)
+        {
+            return HookResult.Continue;
+        }
+
         _listofButton!.Clear();
         _countfind = 0;
 
@@ -251,16 +262,12 @@ public class AdminRoomPlugin : BasePlugin
 
                     _listofButton?.Add(ent);
                 }
-
-                
             }
 
         }
 
         return HookResult.Continue;
     }
-
-
 
     public void SaveConfigToFile(string filePath)
     {
